@@ -1,0 +1,258 @@
+			PAGE 60,240
+			TITLE Quick Sort Yapar
+sseg 		SEGMENT PARA STACK 'yigin'
+			DW 20 DUP(0)
+sseg 		ENDS
+
+dseg		SEGMENT PARA 'veri'
+count		DB 1
+dizi 		DB 100 DUP(0)
+CR 			EQU 13
+LF			EQU 10
+HT			EQU 9
+mesaj1		DB 'Dizi boyutunu veriniz: ',0
+mesaj2		DB '.elemani giriniz: ',0
+hata1 		DB CR,LF,'Dikkat! Sayi girmediniz!!',CR,LF,0
+hata2		DB 'Dikkat! Sayi -128 den kucuk veya 127 den buyuk olamaz!!',CR,LF,0
+given_arr	DB CR,LF,'Girilen Dizi:',CR,LF,0
+sorted_arr	DB CR,LF,'Siralanmis Dizi:',CR,LF,0
+space		DB ' ',0
+dseg 		ENDS
+
+cseg		SEGMENT PARA 'kod'
+			ASSUME DS:dseg, SS:sseg, CS:cseg
+MAIN		PROC FAR
+
+			PUSH DS
+			XOR AX,AX
+			PUSH AX	
+			MOV AX,dseg
+			MOV DS,AX
+			
+			CALL READ_ARR
+			MOV AX,OFFSET given_arr
+			CALL PUT_STR
+			CALL PRINT_ARR
+			CALL FRST_Q_SORT
+			MOV AX,OFFSET sorted_arr
+			CALL PUT_STR
+			CALL PRINT_ARR
+
+			RETF
+MAIN 		ENDP
+
+FRST_Q_SORT	PROC NEAR
+			XOR SI,SI
+			MOV DI,CX
+			DEC DI
+			CALL Q_SORT
+			RET
+FRST_Q_SORT	ENDP			
+
+Q_SORT 		PROC NEAR
+			PUSH CX
+			MOV DX,SI
+			MOV BX,DI
+			MOV AL,dizi[SI]
+LOOP1:		CMP SI,DI
+			JNB LOOP1_END
+LOOP2:		CMP dizi[DI],AL
+			JL LOOP2_END1
+			CMP SI,DI
+			JNB LOOP2_END2
+			DEC DI
+			JMP LOOP2
+LOOP2_END1:	CMP SI,DI
+			JE LOOP2_END2
+			MOV CL,dizi[DI]
+			MOV dizi[SI],CL
+			INC SI
+LOOP2_END2:	CMP dizi[SI],AL
+			JG LOOP3_END1
+			CMP SI,DI
+			JNB LOOP3_END2 
+			INC SI
+			JMP LOOP2_END2
+LOOP3_END1:	CMP SI,DI
+			JE LOOP3_END2
+			MOV CL,dizi[SI]
+			MOV dizi[DI],CL
+			DEC DI
+LOOP3_END2:	JMP LOOP1
+LOOP1_END:	MOV dizi[SI],AL
+			MOV AX,SI
+			MOV SI,DX
+			MOV DI,BX
+			CMP SI,AX
+			JNB SECOND_IF
+			PUSH SI
+			PUSH DI
+			MOV DI,AX
+			DEC DI
+			CALL Q_SORT
+			POP DI
+			POP SI
+SECOND_IF:	CMP DI,AX
+			JNA ENDING
+			PUSH SI
+			PUSH DI
+			MOV SI,AX
+			INC SI
+			CALL Q_SORT
+			POP DI
+			POP SI
+ENDING:		POP CX
+			RET
+Q_SORT		ENDP
+
+READ_ARR 	PROC NEAR
+			MOV AX,OFFSET mesaj1
+			CALL PUT_STR
+			CALL GETN
+			CBW
+			MOV CX,AX
+			PUSH CX
+			XOR DI,DI
+ARR_LOOP:	MOV AL,count
+			CBW
+			CALL PUTN
+			MOV AX,OFFSET mesaj2		
+			CALL PUT_STR
+			CALL GETN
+			CMP AX,-128
+			JL ERROR2
+			CMP AX,127
+			JG ERROR2
+			INC count
+			MOV dizi[DI],AL
+			INC DI
+			LOOP ARR_LOOP
+			JMP FIN_READ_ARR
+ERROR2:		MOV AX,OFFSET hata2
+			CALL PUT_STR
+			JMP ARR_LOOP
+FIN_READ_ARR:POP CX
+			RET
+READ_ARR	ENDP
+
+PRINT_ARR	PROC NEAR
+			PUSH CX
+			XOR DI,DI
+PUT_ARR:	MOV AL,dizi[DI]
+			CBW
+			CALL PUTN
+			MOV AX,OFFSET HT	;HT yerine space,
+			CALL PUTC			;PUTC yerine PUT_STR yazılırsa; elemanlar arasında horizontal tab yerine bir boşluk bırakılır.
+			INC DI
+			LOOP PUT_ARR
+			POP CX
+			RET
+PRINT_ARR 	ENDP
+
+GETC		PROC NEAR
+			MOV AH,1H
+			INT 21H
+			RET
+GETC		ENDP
+
+PUTC 		PROC NEAR
+			PUSH AX
+			PUSH DX
+			MOV DL,AL
+			MOV AH,2
+			INT 21H
+			POP DX
+			POP AX
+			RET
+PUTC 		ENDP
+
+GETN 		PROC NEAR
+			PUSH BX
+			PUSH CX
+			PUSH DX
+GETN_START:	MOV DX,1
+			XOR BX,BX
+			XOR CX,CX
+NEW:		CALL GETC
+			CMP AL,CR
+			JE FIN_READ
+			CMP AL,'-'
+			JNE CTRL_NUM
+NEGATIVE:	MOV DX,-1
+			JMP NEW
+CTRL_NUM:	CMP AL,'0'
+			JB ERROR
+			CMP AL,'9'
+			JA ERROR
+			SUB AL,'0'
+			MOV BL,AL
+			MOV AX,10
+			PUSH DX
+			MUL CX
+			POP DX
+			MOV CX,AX
+			ADD CX,BX
+			JMP NEW
+ERROR:		MOV AX,OFFSET hata1
+			CALL PUT_STR
+			MOV AL,count
+			CBW
+			CALL PUTN
+			MOV AX,OFFSET mesaj2
+			CALL PUT_STR
+			JMP GETN_START
+FIN_READ:	MOV AX,CX
+			CMP DX,1
+			JE FIN_GETN
+			NEG AX
+FIN_GETN: 	POP DX
+			POP CX
+			POP DX
+			RET
+GETN 		ENDP
+
+PUTN 		PROC NEAR
+			PUSH CX
+			PUSH DX
+			XOR DX,DX
+			PUSH DX
+			MOV CX,10
+			CMP AX,0
+			JGE CALC_DIGITS
+			NEG AX
+			PUSH AX
+			MOV AL,'-'
+			CALL PUTC
+			POP AX
+CALC_DIGITS:DIV CX
+			ADD DX,'0'
+			PUSH DX
+			XOR DX,DX
+			CMP AX,0
+			JNE CALC_DIGITS
+DISP_LOOP:	POP AX
+			CMP AX,0
+			JE END_DISP_LOOP
+			CALL PUTC
+			JMP DISP_LOOP
+END_DISP_LOOP:POP DX
+			POP CX
+			RET
+PUTN		ENDP
+
+PUT_STR 	PROC NEAR
+			PUSH BX
+			MOV BX,AX
+			MOV AL,BYTE PTR[BX]
+PUT_LOOP:	CMP AL,0
+			JE PUT_FIN
+			CALL PUTC
+			INC BX
+			MOV AL,BYTE PTR[BX]
+			JMP PUT_LOOP
+PUT_FIN:	POP BX
+			RET
+PUT_STR 	ENDP
+
+cseg 		ENDS
+			END MAIN
